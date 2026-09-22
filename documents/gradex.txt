@@ -1,0 +1,18 @@
+Gradex Central is a management system for managing tenants,
+licenses, docks, diagnosis tests and reports.
+
+A tenant pool license allows multiple devices belonging to a
+tenant to consume licenses from a shared pool.
+
+When a device consumes a license, the system creates a usage
+reservation for that device.
+
+The reservation can be released when the device disconnects
+from the dock or when the diagnosis report is saved.
+
+License entitlements have a validity period. Usage should only
+be counted when the usage event falls inside the entitlement
+validity period.
+
+The system can send alerts when the remaining tenant pool
+license balance falls below a configured threshold.
