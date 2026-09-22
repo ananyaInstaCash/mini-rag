@@ -1,18 +1,191 @@
-Gradex Central is a management system for managing tenants,
-licenses, docks, diagnosis tests and reports.
+Gradex Central is a modern management system designed to manage device diagnosis, testing, licensing, tenants, docks, reports, and integrations. The platform can be used by organizations that operate multiple devices and need a centralized system for managing device workflows.
 
-A tenant pool license allows multiple devices belonging to a
-tenant to consume licenses from a shared pool.
+Gradex Central uses the concept of tenants to separate organizations and their data. A tenant represents an organization or customer using the Gradex platform. Tenant-level access ensures that users belonging to one organization do not normally access data belonging to another organization.
 
-When a device consumes a license, the system creates a usage
-reservation for that device.
+Users are associated with organizations and roles. A user can have different permissions depending on their role. For example, an organization administrator may manage users, view reports, configure integrations, and access organization-level features. Super administrators can have broader access across multiple tenants.
 
-The reservation can be released when the device disconnects
-from the dock or when the diagnosis report is saved.
+The authentication system uses access tokens and refresh tokens. The access token is used to authenticate API requests, while the refresh token can be used to obtain a new access token when the existing token expires. Refresh tokens should be stored securely and should not be exposed unnecessarily to client-side JavaScript.
 
-License entitlements have a validity period. Usage should only
-be counted when the usage event falls inside the entitlement
-validity period.
+Gradex Central supports device diagnosis workflows. A device can be identified using identifiers such as IMEI1 and IMEI2. Diagnosis information can contain device platform information, device model information, physical inspection information, test results, and other diagnostic data.
 
-The system can send alerts when the remaining tenant pool
-license balance falls below a configured threshold.
+A diagnosis session can have a session identifier and a device key. These identifiers help associate multiple operations with the same device testing session. The system can store information about the device, the tests that were performed, and the final diagnosis result.
+
+Gradex Central supports diagnosis reports. A report can contain information about the device, its diagnosis results, physical condition, test results, and other information collected during the workflow. Reports can be generated after the diagnosis process has completed.
+
+Diagnosis data can contain multiple JSON structures. For example, a diagnosis record may contain diagnosisJson, physicalJson, and otherJson fields. Some of these fields may themselves contain JSON stored as strings, so applications consuming the data may need to parse JSON more than once.
+
+Gradex Central supports licensing. A license entitlement defines how many units an organization has purchased or been allocated, the type of license, the validity period, and the scope under which the license can be consumed.
+
+License entitlements can have a valid_from and valid_to date. License consumption should only be counted when the relevant usage event falls inside the entitlement validity period.
+
+Gradex supports different license types. A license type can represent a particular product or operation such as diagnosis or erasure. The system can maintain separate availability information for different license types.
+
+A tenant pool license allows multiple devices belonging to the same tenant to consume licenses from a shared pool. The pool contains a purchased number of license units. Each successful license consumption reduces the available balance.
+
+When a device consumes a tenant pool license, the system can create a usage reservation associated with the device. The reservation helps prevent multiple requests from consuming the same license unit at the same time.
+
+License reservations can be released when a device disconnects from a dock. A reservation can also be released when the diagnosis report is successfully saved, depending on the configured license workflow.
+
+License consumption and reservation operations should be designed to avoid race conditions. If two devices request the last available license unit at nearly the same time, the backend must ensure that the same license unit is not allocated twice.
+
+Gradex also supports device-bound unlimited licensing. A device-bound license associates license usage with a particular device or identifier. The exact behavior depends on the configured license scope and entitlement.
+
+License policies can define rules such as free-window days, enforcement mode, grace limits, and policy versions. These policies allow the license engine to determine whether a device is allowed to proceed with an operation.
+
+A free window can allow a customer or device to use a feature for a limited period without consuming a purchased license. The free-window policy must be evaluated before normal license consumption when the business rules require it.
+
+License availability is calculated from entitlements and usage events. The system can calculate purchased units, consumed units, and remaining units for each applicable license type.
+
+Usage events record license-related operations. A usage event can contain information about the tenant, license type, device, consumed units, event timestamp, and other metadata needed for auditing.
+
+The license decision engine evaluates whether an operation should be allowed. It can consider the requested license type, tenant, device identifier, entitlement validity, remaining balance, free-window rules, and license scope.
+
+A license request can result in different statuses depending on the decision. An operation can be approved when sufficient license capacity exists. It can be rejected when the required license is unavailable or a policy condition is not satisfied.
+
+License expiration must be handled carefully. An entitlement whose valid_to date has passed should not normally be used for new license consumption. Date comparisons should use a consistent timezone and date representation.
+
+Gradex can run scheduled jobs for license management. An expiry job can periodically check license entitlements and identify licenses that are approaching their expiration date.
+
+Low-balance alerts can be sent when the remaining tenant pool license balance falls below a configured threshold. The system can notify administrators using channels such as email or Telegram.
+
+Docks represent physical or logical stations where devices can be connected during diagnosis or testing. Dock information can include the dock identifier, organization, connection status, and device-related information.
+
+A device may connect to a dock before a diagnosis session begins. The backend can associate the connected device with the dock and use that information during license reservation and release operations.
+
+When a device disconnects from a dock, the backend can perform cleanup operations. Depending on the license workflow, the system may release an active license reservation associated with that device.
+
+Gradex Central supports test management. Tests can be organized into different categories and may produce statuses such as PASS, FAIL, NG, or other configured status values.
+
+Device test results can contain information from different test sources. For example, comparison data may contain results from Dr.Fone and an internal test source. Different test categories can contain different test fields.
+
+Gradex can store test comparison records. A comparison record can contain IMEI information, tenant information, session identifiers, timestamps, and a JSON response containing test results.
+
+Test comparison responses can contain groups such as usbTests, oem, and test. Each group can contain results from different sources. The frontend can display these groups separately to make differences easier to understand.
+
+For example, a USB test comparison may contain Wi-Fi and proximity results. One source may report PASS while another source reports FAIL. A comparison screen can display both results so that an operator can identify differences.
+
+OEM test results can contain hardware-related checks. Examples can include LED tests or other manufacturer-specific tests. Different testing systems may represent the same result using different status values.
+
+Gradex APIs can provide test comparison data for all tenants, for a specific tenant, or for a specific IMEI. Tenant-level access should restrict organization administrators to their own organization's records.
+
+Gradex Central can generate reports based on diagnosis data. Report queries may support date ranges such as the last seven days, last fourteen days, last thirty days, or the previous calendar month.
+
+Reports should use consistent timezone handling. If the organization operates in India, dates may need to be interpreted using Asia/Kolkata. Backend systems should avoid mixing local dates and UTC timestamps without clearly defining the conversion rules.
+
+Gradex APIs use a backend service architecture. API requests are handled by controllers, services, and repositories. Controllers handle HTTP-level concerns, services contain business logic, and repositories interact with the database.
+
+A repository should generally be responsible for database operations rather than embedding large amounts of business logic in controllers. This separation makes the system easier to test and maintain.
+
+Gradex uses a relational database for core application data. Important entities can include users, tenants, diagnoses, license entitlements, license policies, usage events, docks, and integration events.
+
+Tenant data can be joined with user data to determine which organization owns a particular record. Access-control checks should happen before returning tenant-specific data to an organization administrator.
+
+Super administrators may have permission to select a tenant when viewing tenant-specific data. Organization administrators should normally be restricted to their own tenant.
+
+Gradex supports integrations with external systems. A diagnosis-completion event can be sent to an external webhook when an organization has configured an integration.
+
+Webhook configuration can contain information such as the target URL, whether the integration is enabled, authentication credentials, retry configuration, and other delivery settings.
+
+Webhook secrets should not be stored as plaintext when avoidable. Sensitive credentials should be encrypted at rest and decrypted only when they are required for delivery.
+
+Webhook delivery can be handled asynchronously. Instead of making the diagnosis API wait for an external system to respond, the application can add a delivery job to a queue.
+
+A queue allows webhook delivery to happen independently from the main diagnosis request. This improves reliability because temporary failures in an external service do not necessarily block the main application workflow.
+
+A webhook worker can consume jobs from a queue and send HTTP requests to external systems. The worker can record whether delivery succeeded or failed.
+
+Webhook requests can fail for many reasons. Network errors, timeouts, HTTP 408, HTTP 429, and certain server-side HTTP 5xx responses can be temporary failures and may be appropriate for retry.
+
+HTTP 400, 401, 403, and 404 responses may indicate that retrying the exact same request will not solve the problem. Such responses can be treated as non-retryable depending on the integration policy.
+
+A retry policy can use increasing delays between attempts. For example, a worker might retry immediately, then wait thirty seconds, then one minute, then five minutes, and finally fifteen minutes.
+
+If all retry attempts fail, the event can be moved to a dead-letter queue. The dead-letter queue allows administrators to inspect failed events and decide whether they should be retried manually or investigated.
+
+Integration events should contain enough information for troubleshooting. Useful information can include event identifiers, tenant identifiers, endpoint information, attempt count, response status, error messages, timestamps, and delivery status.
+
+A dead-letter queue should not simply discard failed events. Keeping the failed event and its metadata allows administrators to investigate external integration failures.
+
+Gradex can use a message queue such as BullMQ backed by Redis for asynchronous webhook processing. The queue stores jobs while workers process them independently.
+
+A queue-based architecture separates event creation from event delivery. The API can create an integration event and enqueue a job, while the worker handles the external HTTP request.
+
+The webhook worker should be started when the backend application starts. The worker should share the correct queue configuration and database configuration with the rest of the application.
+
+External integrations may need to receive client-specific identifiers. For example, a client system may return a job ID that Gradex should store so that users can trace the Gradex diagnosis to the external workflow.
+
+Gradex can also support inventory, repair, and vision systems as separate services. A larger architecture may contain multiple databases or services while maintaining common identity and tenant information.
+
+A possible architecture is to keep Gradex as the master identity and tenant source of truth while allowing individual services to maintain service-specific user or profile records.
+
+In such an architecture, tenant creation in Gradex can trigger synchronization into other services. A service can then maintain local records required for its own business functionality.
+
+A distributed architecture should avoid treating every database as a complete copy of every other database. Each service should ideally own the data that belongs to its domain.
+
+If an inventory service creates a user-specific record that is only relevant to inventory operations, that record can remain in the inventory database instead of being copied back into the Gradex database.
+
+Shared identity information can be represented using a stable user identifier. Other services can store the Gradex user ID as a reference while maintaining their own local data.
+
+This approach is sometimes described as service ownership or domain-based data ownership rather than a traditional master-slave database architecture.
+
+Gradex APIs should be protected by authentication and authorization. Authentication answers who the user is, while authorization determines what the user is allowed to do.
+
+Permissions can be represented using permission identifiers. Examples include dashboard access, diagnosis access, test access, and data comparison access.
+
+A frontend should not be the only place where permission checks are performed. The backend must also enforce authorization because clients can bypass frontend restrictions.
+
+The Gradex Central frontend can provide different navigation options depending on the user's role and permissions. However, hiding a navigation link does not provide security by itself.
+
+API error handling should provide consistent HTTP status codes and response structures. The backend should avoid exposing sensitive internal errors directly to clients.
+
+Logging can be used to troubleshoot API requests and background jobs. Logs should contain useful identifiers such as request IDs, tenant IDs, user IDs, and event IDs while avoiding unnecessary sensitive information.
+
+Gradex can maintain API logs for auditing and troubleshooting. Historical API logs may be archived to separate storage or tables to keep the active logging table manageable.
+
+When synchronizing historical report data, the original created_at timestamp should be preserved when required. Synchronization should avoid accidentally replacing the original business event time with the synchronization time.
+
+Data comparison features can help identify differences between testing systems. A comparison interface can allow an operator to select multiple records and export their underlying JSON data.
+
+JSON export can be useful when investigating discrepancies between systems. The exported data should preserve the original structure so it can be analyzed outside the application.
+
+A production RAG system could use this type of Gradex documentation as its knowledge base. When a user asks a question about license reservations, the retrieval system should identify the relevant license chunks rather than searching the entire document manually.
+
+For example, if a user asks when a tenant pool reservation is released, the relevant information includes device disconnection and successful report saving. The RAG system should retrieve those passages and use them as context for the final answer.
+
+If a user asks about webhook retries, the relevant information includes retryable HTTP statuses, non-retryable statuses, retry delays, workers, queues, and dead-letter queues.
+
+If a user asks about multi-service architecture, the relevant information includes tenant ownership, user identifiers, service-specific data, synchronization, and domain-based data ownership.
+
+A good RAG system should answer using retrieved context rather than inventing information that is not present in the knowledge base. If the knowledge base does not contain enough information, the system should be able to indicate that the available documentation does not provide the answer.
+
+RAG retrieval quality depends on several factors. These include document quality, chunk size, chunk overlap, embedding model quality, similarity search, metadata filtering, and the number of retrieved chunks.
+
+A larger document provides a better environment for testing retrieval because multiple sections may contain related concepts. For example, license reservations, usage events, entitlements, and dock disconnections are related topics that may appear in different parts of the documentation.
+
+Chunking should preserve enough context for an embedding to represent the meaning of a passage. Very small chunks may lose context, while very large chunks may contain unrelated information.
+
+The retrieval process converts the user's question into an embedding and compares it against the stored embeddings. The highest-scoring chunks are considered the most semantically relevant.
+
+The final RAG prompt can contain the user's question and the retrieved context. The language model can then generate an answer based on that context.
+
+A robust RAG system should also return the sources used to generate the answer. Source information allows users to verify the answer and makes the system more trustworthy.
+
+For production systems, retrieval should be evaluated using a collection of representative questions. Each question can have expected relevant documents or chunks, allowing retrieval quality to be measured systematically.
+
+RAG systems can also use hybrid retrieval. Hybrid retrieval combines semantic vector search with traditional keyword search. This can be useful when users ask questions containing exact identifiers, error messages, model names, or database fields.
+
+Reranking can be added after initial retrieval. A retriever can first select a larger set of candidates, and a reranker can then evaluate which candidates are most relevant to the exact question.
+
+Metadata filtering can restrict retrieval to a particular tenant, document, product, date, or category. This is particularly important in multi-tenant systems because one organization's private information should not be returned to another organization.
+
+A production Gradex RAG system should enforce tenant isolation during retrieval. Tenant metadata can be attached to each document chunk and used as a filter before returning context to the language model.
+
+The RAG system should also consider document updates. When documentation changes, the affected chunks should be re-embedded so that retrieval uses the latest information.
+
+Deleting a document should also remove or deactivate its corresponding vectors. Otherwise, the retriever may return information that should no longer be available.
+
+A complete RAG architecture therefore contains an ingestion pipeline and a query pipeline.
+
+The ingestion pipeline loads documents, cleans text, splits documents into chunks, generates embeddings, stores vectors, and stores metadata.
+
+The query pipeline accepts a user question, generates its embedding, searches the vector store, optionally reranks the results, constructs a prompt using the retrieved context, sends the prompt to an LLM, and returns the answer along with source information.
